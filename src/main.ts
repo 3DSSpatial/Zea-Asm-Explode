@@ -212,7 +212,7 @@ function init() {
   // ////////////////////////////////////////////
   // Create debug point
   let geomTreeItem: TreeItem;
-  const addPoint = (iPt:Vec3, rad:number) =>{
+  const addPoint = (iPt:Vec3, iRadius:number, iColor:Color) =>{
     // Create Tree node if not there
     if(!geomTreeItem){
       geomTreeItem = new TreeItem("Pts");
@@ -220,11 +220,11 @@ function init() {
     }
 
     // Create Sphere, green
-    let sPt = new Sphere(rad, 13)
+    let sPt = new Sphere(iRadius, 13)
     const ptGeomMaterial = new Material("ptGeomMaterial", "SimpleSurfaceShader");
     const color = ptGeomMaterial.getParameter("BaseColor")
     if( color)
-      color.setValue(new Color(0, 1, 0));
+      color.setValue(iColor);
     const geomItem = new GeomItem("iPt", sPt , ptGeomMaterial);
   
     // Sphere position
@@ -248,20 +248,49 @@ function init() {
     })
   }
 
-  let useCOG = false
+  const useCOG = false
+  const debugPoints = false
   let asmDiag = 0
   let asmCenter = new Vec3()
   let asmCog = new Vec3()
-  let gXfos = new Map()
+  let itemsInfo = new Map()
   let hasCOG: boolean = false
+
+  const applyAsmExplode = (asmExpansion: number) => {
+    scene.getRoot().traverse((item) => {
+      if (item instanceof InstanceItem || item instanceof CADPart) { 
+        const itemInfo = itemsInfo.get(item)
+        let iCenter: Vec3 = itemInfo.center 
+        let tr: Vec3 = iCenter.subtract(asmCenter).normalize()
+        if(useCOG && hasCOG){
+          let iCOG: Vec3 = itemInfo.cog 
+          tr = asmCog.subtract(iCOG)
+          //console.log('===Using COG= tr x=' + tr.x + ' y=' + tr.y + ' z' + tr.z + '===')
+        }
+
+        // Using expans^2 so it moves slower when close
+        let expans =  asmExpansion / 1000
+        tr.scaleInPlace(asmDiag * expans * expans )
+
+        let igXfotr = new Xfo()
+        igXfotr.setFromOther(itemInfo.gXfo)
+        igXfotr.tr = itemInfo.gXfo.tr.add(tr)
+        item.globalXfoParam.value = igXfotr
+      }
+    })
+    renderer.frameAll()
+  }
   
+
   const initExplodeData = () => {
+    let p0 = new Vec3()
+    let p1 = new Vec3()
     let parts=0
     const root = scene.getRoot()
     const rootBBox: Box3 = root.boundingBoxParam.value
     asmCenter = rootBBox.center()
     asmDiag = rootBBox.size()
-
+    let minDist =  Number.MAX_SAFE_INTEGER
     root.traverse((item) => {
       if (item instanceof InstanceItem || item instanceof CADPart) {
         const iBBox: Box3 = item.boundingBoxParam.value
@@ -277,56 +306,34 @@ function init() {
             asmCog.addInPlace(iCog)
           }
         }
+        let dist =  iCenter.distanceTo(asmCenter)
+        if(dist < minDist ){
+          minDist = dist
+          asmCenter = iCenter
+          p0 = iBBox.p0
+          p1 = iBBox.p1
+        }
 
         let igXfo: Xfo = item.globalXfoParam.value
-        gXfos.set(item, {gXfo:igXfo, center:iCenter, cog:iCog} )
+        itemsInfo.set(item, {gXfo:igXfo, center:iCenter, cog:iCog} )
       }
-
     })
     let cogSacle= 0.001 /parts // mm to m
     asmCog.scaleInPlace(cogSacle)
-    console.log('asmCog x='+asmCog.x+' y='+asmCog.y+' z'+asmCog.z )
+    //console.log('asmCog x='+asmCog.x+' y='+asmCog.y+' z'+asmCog.z )
     console.log('asmCenter x=' + asmCenter.x + ' y=' + asmCenter.y + ' z' + asmCenter.z + ' diag=' + asmDiag)
     
     // Visualize debug BBox
-    let rad=asmDiag/100
-    //addPoint(asmCenter, rad)
-    //addPoint(rootBBox.p0, rad)
-    //addPoint(rootBBox.p1, rad)
-  }
-  
-  const applyAsmExplode = (asmExpansion: number) => {
-    let iPart = 0
-    scene.getRoot().traverse((item) => {
-      if (item instanceof InstanceItem || item instanceof CADPart) { //InstanceItem CADPart
-        const itemInfo = gXfos.get(item)
-        let iCenter: Vec3 = itemInfo.center 
-        let tr: Vec3 = iCenter.subtract(asmCenter).normalize()
-        if(useCOG && hasCOG){
-          let iCOG: Vec3 = itemInfo.cog 
-          tr = asmCog.subtract(iCOG)
-          console.log('===Using COG= tr x=' + tr.x + ' y=' + tr.y + ' z' + tr.z + '===')
-        }
-        let expans = asmDiag * asmExpansion / 1000
-        tr.scaleInPlace(expans*expans )
-
-        let igXfotr = new Xfo()
-        igXfotr.setFromOther(itemInfo.gXfo)
-        igXfotr.tr = itemInfo.gXfo.tr.add(tr)
-        item.globalXfoParam.value = igXfotr
-
-
-        if (iPart == 0) {
-          console.log('==== tr x=' + tr.x + ' y=' + tr.y + ' z' + tr.z + '===')
-          console.log('iXfotr.tr x=' + igXfotr.tr.x + ' y=' + igXfotr.tr.y + ' z' + igXfotr.tr.z)
-        }
-        iPart++
-        //return false
-      }
-      //else
-        //return true
-    })
-    renderer.frameAll()
+    if (debugPoints) {
+      let rad = asmDiag / 100
+      let green = new Color(0, 1, 0)
+      addPoint(asmCenter, rad, green)
+      addPoint(rootBBox.p0, rad, green)
+      addPoint(rootBBox.p1, rad, green)
+      let blue = new Color(0, 0, 1)
+      addPoint(p0, rad, blue)
+      addPoint(p1, rad, blue)
+    }
   }
   
 
