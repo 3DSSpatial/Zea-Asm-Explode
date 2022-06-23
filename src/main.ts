@@ -248,13 +248,10 @@ function init() {
     })
   }
 
-  const useCOG = false
   const debugPoints = false
   let asmDiag = 0
   let asmCenter = new Vec3()
-  let asmCog = new Vec3()
   let itemsInfo = new Map()
-  let hasCOG: boolean = false
 
   const applyAsmExplode = (asmExpansion: number) => {
     scene.getRoot().traverse((item) => {
@@ -262,11 +259,6 @@ function init() {
         const itemInfo = itemsInfo.get(item)
         let iCenter: Vec3 = itemInfo.center 
         let tr: Vec3 = iCenter.subtract(asmCenter).normalize()
-        if(useCOG && hasCOG){
-          let iCOG: Vec3 = itemInfo.cog 
-          tr = asmCog.subtract(iCOG)
-          //console.log('===Using COG= tr x=' + tr.x + ' y=' + tr.y + ' z' + tr.z + '===')
-        }
 
         // Using expans^2 so it moves slower when close
         let expans =  asmExpansion / 1000
@@ -285,7 +277,6 @@ function init() {
   const initExplodeData = () => {
     let p0 = new Vec3()
     let p1 = new Vec3()
-    let parts=0
     const root = scene.getRoot()
     const rootBBox: Box3 = root.boundingBoxParam.value
     asmCenter = rootBBox.center()
@@ -296,16 +287,6 @@ function init() {
         const iBBox: Box3 = item.boundingBoxParam.value
         const iCenter = iBBox.center()
         
-        let iCog = new Vec3
-        if (useCOG) {
-          const cogParam = item.getParameter('centerOfGravity')
-          if (cogParam) {
-            hasCOG = true
-            iCog = cogParam.getValue()
-            parts++
-            asmCog.addInPlace(iCog)
-          }
-        }
         let dist =  iCenter.distanceTo(asmCenter)
         if(dist < minDist ){
           minDist = dist
@@ -315,12 +296,9 @@ function init() {
         }
 
         let igXfo: Xfo = item.globalXfoParam.value
-        itemsInfo.set(item, {gXfo:igXfo, center:iCenter, cog:iCog} )
+        itemsInfo.set(item, {gXfo:igXfo, center:iCenter} )
       }
     })
-    let cogSacle= 0.001 /parts // mm to m
-    asmCog.scaleInPlace(cogSacle)
-    //console.log('asmCog x='+asmCog.x+' y='+asmCog.y+' z'+asmCog.z )
     console.log('asmCenter x=' + asmCenter.x + ' y=' + asmCenter.y + ' z' + asmCenter.z + ' diag=' + asmDiag)
     
     // Visualize debug BBox
