@@ -220,7 +220,7 @@ function init() {
     }
 
     // Create Sphere, green
-    let sPt = new Sphere(iRadius, 13)
+    let sPt = new Sphere(iRadius, 4)
     const ptGeomMaterial = new Material("ptGeomMaterial", "SimpleSurfaceShader");
     const color = ptGeomMaterial.getParameter("BaseColor")
     if( color)
@@ -250,19 +250,22 @@ function init() {
 
   const debugPoints = false
   let asmDiag = 0
+  let asmXfo = new Xfo()
   let asmCenter = new Vec3()
+  let asmBBox = new Box3()
   let itemsInfo = new Map()
 
   const applyAsmExplode = (asmExpansion: number) => {
     scene.getRoot().traverse((item) => {
-      if (item instanceof InstanceItem || item instanceof CADPart) { 
+      if (item instanceof CADPart) { 
+        if(item.getName()=='M10X25g') return
         const itemInfo = itemsInfo.get(item)
         let iCenter: Vec3 = itemInfo.center 
-        let tr: Vec3 = iCenter.subtract(asmCenter).normalize()
-
+        let tr: Vec3 = iCenter.subtract(asmCenter) //.normalize()
+        tr = asmXfo.transformVec3(tr)
         // Using expans^2 so it moves slower when close
         let expans =  asmExpansion / 1000
-        tr.scaleInPlace(asmDiag * expans * expans )
+        tr.scaleInPlace(10 * expans * expans )
 
         let igXfotr = new Xfo()
         igXfotr.setFromOther(itemInfo.gXfo)
@@ -270,7 +273,7 @@ function init() {
         item.globalXfoParam.value = igXfotr
       }
     })
-    renderer.frameAll()
+    //renderer.frameAll()
   }
   
 
@@ -279,36 +282,44 @@ function init() {
     let p1 = new Vec3()
     const root = scene.getRoot()
     const rootBBox: Box3 = root.boundingBoxParam.value
-    asmCenter = rootBBox.center()
+    let rootCenter = rootBBox.center()
     asmDiag = rootBBox.size()
+    asmXfo.sc = rootBBox.diagonal()
     let minDist =  Number.MAX_SAFE_INTEGER
     root.traverse((item) => {
-      if (item instanceof InstanceItem || item instanceof CADPart) {
+      if (item instanceof CADPart) {
+        if(item.getName()=='M10X25g') return // hack for JYJ2#1460T***.zcad
         const iBBox: Box3 = item.boundingBoxParam.value
         const iCenter = iBBox.center()
-        
-        let dist =  iCenter.distanceTo(asmCenter)
+         // recomputing asmBBox since rootBBox sometimes has pb (see M10X25g in JYJ2#1460T***.zcad )
+        asmBBox.addPoint(iCenter)
+        let dist =  iCenter.distanceTo(rootCenter)
         if(dist < minDist ){
           minDist = dist
           asmCenter = iCenter
           p0 = iBBox.p0
           p1 = iBBox.p1
         }
-
         let igXfo: Xfo = item.globalXfoParam.value
         itemsInfo.set(item, {gXfo:igXfo, center:iCenter} )
       }
     })
-    console.log('asmCenter x=' + asmCenter.x + ' y=' + asmCenter.y + ' z' + asmCenter.z + ' diag=' + asmDiag)
+    asmXfo.sc = asmBBox.diagonal().normalize()
+    if(asmXfo.sc.x>0.8) asmXfo.sc.x = 0.1 // for parts mostly cylindrical
+    if(asmXfo.sc.y>0.8) asmXfo.sc.y = 0.1
+    if(asmXfo.sc.z>0.8) asmXfo.sc.z = 0.1
+    //console.log('asmXfo.sc x=' + asmXfo.sc.x + ' y=' + asmXfo.sc.y + ' z=' + asmXfo.sc.z + ' diag=' + asmDiag)
+    //console.log('asmCenter x=' + asmCenter.x + ' y=' + asmCenter.y + ' z=' + asmCenter.z + ' diag=' + asmDiag+ ' parts=' + parts)
     
     // Visualize debug BBox
     if (debugPoints) {
       let rad = asmDiag / 100
       let green = new Color(0, 1, 0)
-      addPoint(asmCenter, rad, green)
-      addPoint(rootBBox.p0, rad, green)
-      addPoint(rootBBox.p1, rad, green)
+      addPoint(asmBBox.center(), rad, green)
+      addPoint(asmBBox.p0, rad, green)
+      addPoint(asmBBox.p1, rad, green)
       let blue = new Color(0, 0, 1)
+      addPoint(asmCenter, rad, blue)
       addPoint(p0, rad, blue)
       addPoint(p1, rad, blue)
     }
