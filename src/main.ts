@@ -53,6 +53,9 @@ function init() {
     debugGeomIds: false,
     /* Enable frustum culling which speeds up rendering on large complex scenes */
     enableFrustumCulling: true,
+    /* Enable Occlusion culling which speeds up rendering on large complex scenes */
+    enableOcclusionCulling: true, 
+    antialias: false ,
     xrMode: xrMode == 'AR' ? 'AR' : 'VR',
   })
 
@@ -264,8 +267,8 @@ function init() {
         let tr: Vec3 = iCenter.subtract(asmCenter) //.normalize()
         tr = asmXfo.transformVec3(tr)
         // Using expans^2 so it moves slower when close
-        let expans =  asmExpansion / 1000
-        tr.scaleInPlace(10 * expans * expans )
+        let expans =  asmExpansion 
+        tr.scaleInPlace(expans * expans / 100000 ) // 10 / (1000 * 1000)
 
         let igXfotr = new Xfo()
         igXfotr.setFromOther(itemInfo.gXfo)
