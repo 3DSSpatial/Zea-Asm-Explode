@@ -36,7 +36,7 @@ class LoginDialog extends HTMLElement {
 
     this.content.innerHTML = `
         <div class="imgcontainer">
-          <img src="./data/logo-zea.svg" alt="Avatar" class="avatar">
+          <img src="./data/3ds-dark.svg" alt="Avatar" class="avatar">
         </div>
 
         <div class="container">
