@@ -19,7 +19,10 @@
       </header>
       <main class="flex flex-col flex-1">
         <div class="flex-1" id="topPanel">
-          <div class="splitter">
+          <div id="sliderPanel">
+            <input type="range" min="0" max="1000" value="0" class="slider" id="asmSlider" />
+          </div>
+            <div class="splitter">
             <div id="leftPanel" class="invisible" style="width: 0px; left: 0px">
               <div id="treePanel">
               <zea-tree-view id="tree" class="select-none" style="height: 80%"></zea-tree-view>
@@ -37,11 +40,10 @@
             </div>
           </div>
         </div>
-        <div class="separator" id="separatorH"></div>
+<!-- Uncomment these lines to provide a resizable bottom panel
         <div id="sliderPanel" style="height: 50px; bottom: 0px">
           <input type="range" min="0" max="1000" value="0" class="slider" id="asmSlider" />
         </div>
-<!-- Uncomment these lines to provide a resizable bottom panel
         <div class="separator" id="separatorH"></div>
         <div id="bottomPanel">
         </div> -->
